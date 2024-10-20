@@ -29,13 +29,13 @@
 namespace ImGui {
 
 #ifndef IMGUIHELPER_H_
-// Posted by Omar in one post. It might turn useful...
+/*// Posted by Omar in one post. It might turn useful...
 bool IsItemActiveLastFrame()    {
     ImGuiContext& g = *GImGui;
     if (g.ActiveIdPreviousFrame)
-	return g.ActiveIdPreviousFrame== GImGui->CurrentWindow->DC.LastItemId;
+	    return g.ActiveIdPreviousFrame== GImGui->CurrentWindow->DC.LastItemId;
     return false;
-}
+}*/
 bool IsItemJustReleased()   {
     return IsItemActiveLastFrame() && !ImGui::IsItemActive();
 }
@@ -512,7 +512,7 @@ bool ColorCombo(const char* label,ImVec4 *pColorOut,bool supportsAlpha,float wid
     ImVec4 color = pColorOut ? *pColorOut : ImVec4(0,0,0,1);
     if (!supportsAlpha) color.w=1.f;
 
-    const bool hovered = ItemHoverable(frame_bb, id);
+    const bool hovered = ItemHoverable(frame_bb, id, 0);
 
     const ImRect value_bb(frame_bb.Min, frame_bb.Max - ImVec2(arrow_size, 0.0f));
     RenderFrame(frame_bb.Min, frame_bb.Max, GetColorU32(ImGuiCol_FrameBg), true, style.FrameRounding);
@@ -1619,7 +1619,7 @@ int PlotHistogram(const char* label, float (*values_getter)(void* data, int idx,
 
         const int total_histograms = values_count * num_histograms;
 
-        const bool isItemHovered = ItemHoverable(inner_bb, id);
+        const bool isItemHovered = ItemHoverable(inner_bb, id, 0);
 
         if (!mustOverrideColors) col_base_embedded[0] = GetColorU32(ImGuiCol_PlotHistogram);
         const ImU32 lineCol = GetColorU32(ImGuiCol_WindowBg);
@@ -1800,7 +1800,7 @@ int PlotCurve(const char* label, float (*values_getter)(void* data, float x,int 
         const ImU32* col_base = mustOverrideColors ? pColorsOverride : col_base_embedded;
         const int num_colors = mustOverrideColors ? numColorsOverride : num_colors_embedded;
 
-        const bool isItemHovered = ItemHoverable(inner_bb, id);
+        const bool isItemHovered = ItemHoverable(inner_bb, id, 0);
 
         if (!mustOverrideColors) col_base_embedded[0] = GetColorU32(ImGuiCol_PlotLines);
 
@@ -2013,7 +2013,7 @@ static void PlotMultiEx(
 
     // Tooltip on hover
     int v_hovered = -1;
-    if (ItemHoverable(inner_bb, id) && inner_bb.Contains(g.IO.MousePos))
+    if (ItemHoverable(inner_bb, id, 0) && inner_bb.Contains(g.IO.MousePos))
     {
         const float t = ImClamp((g.IO.MousePos.x - inner_bb.Min.x) / (inner_bb.Max.x - inner_bb.Min.x), 0.0f, 0.9999f);
         const int v_idx = (int) (t * item_count);
@@ -2433,7 +2433,7 @@ bool InputComboWithAutoCompletion(const char* label, int *current_item, size_t a
         const ImRect label_bb(window->DC.CursorPos,ImVec2(window->DC.CursorPos.x + label_size.x, window->DC.CursorPos.y + label_size.y + ImGui::GetStyle().FramePadding.y*2.0f));
         ImGui::ItemSize(label_bb, ImGui::GetStyle().FramePadding.y);
         const ImGuiID labelID = 0;  // is this allowed ?
-        if (ImGui::ItemAdd(label_bb, labelID)) pad->itemHovered|=ItemHoverable(label_bb, labelID);
+        if (ImGui::ItemAdd(label_bb, labelID)) pad->itemHovered|=ItemHoverable(label_bb, labelID, 0);
     }
     else {
         // ImGui::InputText(...) here
@@ -3435,6 +3435,11 @@ static int s_timeline_display_index = 0;
 static ImVec2* s_ptimeline_offset_and_scale = NULL;
 
 namespace Private   {
+static bool GetSkipItemForListClipping()
+{
+    ImGuiContext& g = *GImGui;
+    return (g.CurrentTable ? g.CurrentTable->HostSkipItems : g.CurrentWindow->SkipItems);
+}
 // ImGui::CalculateListClipping() is now deprecated, and this fallback function is provided (somewhere in Dear ImGui source):
 // ================================================================================================
 // Legacy helper to calculate coarse clipping of large list of evenly sized items.
@@ -3960,7 +3965,8 @@ unsigned int CheckboxFlags(const char* label,unsigned int* flags,int numFlags,in
 
         bool hovered=false, held= false, pressed = false;
         // pressed = ButtonBehavior(bb, itemID, &hovered, &held);   // Too slow!
-        hovered = ItemHoverable(bb, itemID);pressed =  buttonPressed && hovered;   // Way faster
+        hovered = ItemHoverable(bb, itemID, 0);
+        pressed =  buttonPressed && hovered;   // Way faster
         if (pressed) {
             v = !v;
             if (!ImGui::GetIO().KeyShift) *flags=0;
@@ -4833,6 +4839,10 @@ ImGuiKey VirtualKeyboard(VirtualKeyboardFlags flags,KeyboardLogicalLayout logica
         "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 
         "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+        //ImGuiKey_F13, ImGuiKey_F14, ImGuiKey_F15, ImGuiKey_F16, ImGuiKey_F17, ImGuiKey_F18,
+        "F13", "F14", "F15", "F16", "F17", "F18",
+        //ImGuiKey_F19, ImGuiKey_F20, ImGuiKey_F21, ImGuiKey_F22, ImGuiKey_F23, ImGuiKey_F24,
+        "F19", "F20", "F21", "F22", "F23", "F24",
         "'", ",", "-", ".", "/", ";", "=", "(",
         "\\", ")", "`", "CapsLock", "Scr\nLck", "Nm\nLck", "Print", // [...] graveaccent, capsL scrollL numL Print
 
@@ -4840,11 +4850,16 @@ ImGuiKey VirtualKeyboard(VirtualKeyboardFlags flags,KeyboardLogicalLayout logica
         "7", "8", "9", ".", "/", "*",
         "-", "+", "Ent", "=",
 
-        "Start", "Back", "FaceUp", "FaceDown", "FaceLeft", "FaceRight",
-        "^", "v", "<", ">",                                     // Dpad
+        // ImGuiKey_AppBack,ImGuiKey_AppForward, // Available on some keyboard/mouses. Often referred as "Browser Back"
+        "<=", "=>",
+
+        "Start", "Back", "FaceLeft", "FaceRight", "FaceUp", "FaceDown",
+        "<", ">", "^", "v",                                      // Dpad
         "L1", "R1", "L2", "R2", "L3", "R3",
-        "^", "v", "<", ">",  // LStick
-        "^", "v", "<", ">",   // RStick
+        "<", ">", "^", "v",  // LStick
+        "<", ">", "^", "v",   // RStick
+        // ImGuiKey_MouseLeft, ImGuiKey_MouseRight, ImGuiKey_MouseMiddle, ImGuiKey_MouseX1, ImGuiKey_MouseX2, ImGuiKey_MouseWheelX, ImGuiKey_MouseWheelY,
+        "LMB", "RMB", "MMB", "X1", "X2", "WheelX", "WheelY",
         "ModCtrl", "ModShift", "ModAlt", "ModSuper"
     };
     IM_STATIC_ASSERT(ImGuiKey_NamedKey_COUNT == IM_ARRAYSIZE(KeyLabels));
